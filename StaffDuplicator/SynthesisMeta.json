@@ -1,15 +1,15 @@
 {
   "Nickname": "StaffDuplicator",
   "Visibility": "Visible",
-  "OneLineDescription": "",
+  "OneLineDescription": "Generates CC Staff variants of existing staves",
   "LongDescription": "",
   "PreferredAutoVersioning": "Default",
   "RequiredMods": [
+    "ccbgssse066-staves.esl"
   ],
   "TargetedReleases": [
     "SkyrimLE",
     "SkyrimSE",
-    "SkyrimVR",
     "SkyrimSEGog"
   ]
 }
