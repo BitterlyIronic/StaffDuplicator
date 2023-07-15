@@ -13,10 +13,17 @@ namespace StaffDuplicator
 {
     public class Settings
     {
-        [SettingName("A comma seperated list of mod names to patch")]
-        public string ModsToPatch = "";
-        [SettingName("A comma seperated list of editor ids for base, unenchanted staves")]
-        public string BaseStaves = "ccBGSSSE066_StaffTemplateDreugh,ccBGSSSE066_StaffTemplateEbony,ccBGSSSE066_StaffTemplateDaedric,ccBGSSSE066_StaffTemplateGlass,ccBGSSSE066_StaffTemplateSilver,ccBGSSSE066_StaffTemplateSteel,ccBGSSSE066_StaffTemplateWood,ccBGSSSE066_StaffTemplateWood02";
+        [SettingName("A list of mod names to patch")]
+        public string[] ModsToPatch = Array.Empty<string>();
+        [SettingName("A list of editor ids for base, unenchanted staves")]
+        public string[] BaseStaves = new string[] { "ccBGSSSE066_StaffTemplateDreugh",
+                                                    "ccBGSSSE066_StaffTemplateEbony",
+                                                    "ccBGSSSE066_StaffTemplateDaedric",
+                                                    "ccBGSSSE066_StaffTemplateGlass",
+                                                    "ccBGSSSE066_StaffTemplateSilver",
+                                                    "ccBGSSSE066_StaffTemplateSteel",
+                                                    "ccBGSSSE066_StaffTemplateWood",
+                                                    "ccBGSSSE066_StaffTemplateWood02" };
         [SettingName("The regex used to get the staff prefixes, don't mess with this unless you know what you're doing")]
         public string StaffRegex = @"Unenchanted (\w+) Staff";
     }
@@ -53,8 +60,8 @@ namespace StaffDuplicator
             var hasMysticism = state.LoadOrder.ContainsKey(Mysticism);
 
             var staffKeyword = state.LinkCache.Resolve<IKeywordGetter>("WeapTypeStaff").ToNullableLink();
-            var modsToPatch = (settings?.Value.ModsToPatch.Split(',') ?? throw new ArgumentException("Settings failed to load")).Select(x => ModKey.FromNameAndExtension(x)).ToList();
-            var baseStaves = BuildBaseStaffList(state, settings?.Value.BaseStaves.Split(',') ?? throw new ArgumentException("Settings failed to load"));
+            var modsToPatch = (settings?.Value.ModsToPatch ?? throw new ArgumentException("Settings failed to load")).Select(x => ModKey.FromNameAndExtension(x)).ToList();
+            var baseStaves = BuildBaseStaffList(state, settings?.Value.BaseStaves ?? throw new ArgumentException("Settings failed to load"));
             Dictionary<Skill, IFormLinkNullable<IKeywordGetter>> keywordDict = new();
 
             if (hasMysticism)
