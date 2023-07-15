@@ -76,17 +76,17 @@ namespace StaffDuplicator
 
             state.LoadOrder.AssertListsMods(modsToPatch);
 
-            IEnumerable<FormKey> stavesToPatch = new List<FormKey>();
+            List<FormKey> stavesToPatch = new();
 
             foreach (var mod in modsToPatch)
             {
                 // staves that have editor ids and templates
-                stavesToPatch = stavesToPatch.Concat(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
+                stavesToPatch.AddRange(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
                         && x.HasKeyword(staffKeyword)
                         && !x.Template.IsNull).Select(x => x.FormKey));
             }
 
-            var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides();
+            var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides().ToList();
             var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => stavesToPatch.Contains(x.Record.FormKey)
                 && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey));
             Console.WriteLine("Starting");
