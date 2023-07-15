@@ -175,7 +175,7 @@ namespace StaffDuplicator
             }
         }
 
-        private static IList<BaseStaff> BuildBaseStaffList(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string[] eIds)
+        private static IList<BaseStaff> BuildBaseStaffList(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, IEnumerable<string> eIds)
         {
             var list = new List<BaseStaff>();
             var prefixRegex = new Regex(settings!.Value.StaffRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
