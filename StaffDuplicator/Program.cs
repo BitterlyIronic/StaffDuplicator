@@ -13,10 +13,17 @@ namespace StaffDuplicator
 {
     public class Settings
     {
-        [SettingName("A comma seperated list of mod names to patch")]
-        public string ModsToPatch = "";
-        [SettingName("A comma seperated list of editor ids for base, unenchanted staves")]
-        public string BaseStaves = "ccBGSSSE066_StaffTemplateDreugh,ccBGSSSE066_StaffTemplateEbony,ccBGSSSE066_StaffTemplateDaedric,ccBGSSSE066_StaffTemplateGlass,ccBGSSSE066_StaffTemplateSilver,ccBGSSSE066_StaffTemplateSteel,ccBGSSSE066_StaffTemplateWood,ccBGSSSE066_StaffTemplateWood02";
+        [SettingName("A list of mod names to patch")]
+        public List<string> ModsToPatch = new();
+        [SettingName("A list of editor ids for base, unenchanted staves")]
+        public List<string> BaseStaves = new() { "ccBGSSSE066_StaffTemplateDreugh",
+                                                 "ccBGSSSE066_StaffTemplateEbony",
+                                                 "ccBGSSSE066_StaffTemplateDaedric",
+                                                 "ccBGSSSE066_StaffTemplateGlass",
+                                                 "ccBGSSSE066_StaffTemplateSilver",
+                                                 "ccBGSSSE066_StaffTemplateSteel",
+                                                 "ccBGSSSE066_StaffTemplateWood",
+                                                 "ccBGSSSE066_StaffTemplateWood02" };
         [SettingName("The regex used to get the staff prefixes, don't mess with this unless you know what you're doing")]
         public string StaffRegex = @"Unenchanted (\w+) Staff";
     }
@@ -53,8 +60,8 @@ namespace StaffDuplicator
             var hasMysticism = state.LoadOrder.ContainsKey(Mysticism);
 
             var staffKeyword = state.LinkCache.Resolve<IKeywordGetter>("WeapTypeStaff").ToNullableLink();
-            var modsToPatch = (settings?.Value.ModsToPatch.Split(',') ?? throw new ArgumentException("Settings failed to load")).Select(x => ModKey.FromNameAndExtension(x)).ToList();
-            var baseStaves = BuildBaseStaffList(state, settings?.Value.BaseStaves.Split(',') ?? throw new ArgumentException("Settings failed to load"));
+            var modsToPatch = (settings?.Value.ModsToPatch ?? throw new ArgumentException("Settings failed to load")).Select(x => ModKey.FromNameAndExtension(x)).ToList();
+            var baseStaves = BuildBaseStaffList(state, settings?.Value.BaseStaves ?? throw new ArgumentException("Settings failed to load"));
             Dictionary<Skill, IFormLinkNullable<IKeywordGetter>> keywordDict = new();
 
             if (hasMysticism)
@@ -69,17 +76,17 @@ namespace StaffDuplicator
 
             state.LoadOrder.AssertListsMods(modsToPatch);
 
-            IEnumerable<FormKey> stavesToPatch = new List<FormKey>();
+            List<FormKey> stavesToPatch = new();
 
             foreach (var mod in modsToPatch)
             {
                 // staves that have editor ids and templates
-                stavesToPatch = stavesToPatch.Concat(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
+                stavesToPatch.AddRange(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
                         && x.HasKeyword(staffKeyword)
                         && !x.Template.IsNull).Select(x => x.FormKey));
             }
 
-            var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides();
+            var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides().ToList();
             var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => stavesToPatch.Contains(x.Record.FormKey)
                 && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey));
             Console.WriteLine("Starting");
@@ -149,7 +156,7 @@ namespace StaffDuplicator
                             {
                                 entry.Data ??= new();
                                 if (entry.Data.Reference.FormKey == record.FormKey)
-                                    entry.Data.Reference.FormKey = lList.FormKey; 
+                                    entry.Data.Reference.FormKey = lList.FormKey;
                             }
                         }
                     }
@@ -168,7 +175,7 @@ namespace StaffDuplicator
             }
         }
 
-        private static IList<BaseStaff> BuildBaseStaffList(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, string[] eIds)
+        private static IList<BaseStaff> BuildBaseStaffList(IPatcherState<ISkyrimMod, ISkyrimModGetter> state, IEnumerable<string> eIds)
         {
             var list = new List<BaseStaff>();
             var prefixRegex = new Regex(settings!.Value.StaffRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
