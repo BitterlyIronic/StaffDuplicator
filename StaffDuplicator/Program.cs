@@ -14,16 +14,16 @@ namespace StaffDuplicator
     public class Settings
     {
         [SettingName("A list of mod names to patch")]
-        public string[] ModsToPatch = Array.Empty<string>();
+        public List<string> ModsToPatch = new();
         [SettingName("A list of editor ids for base, unenchanted staves")]
-        public string[] BaseStaves = new string[] { "ccBGSSSE066_StaffTemplateDreugh",
-                                                    "ccBGSSSE066_StaffTemplateEbony",
-                                                    "ccBGSSSE066_StaffTemplateDaedric",
-                                                    "ccBGSSSE066_StaffTemplateGlass",
-                                                    "ccBGSSSE066_StaffTemplateSilver",
-                                                    "ccBGSSSE066_StaffTemplateSteel",
-                                                    "ccBGSSSE066_StaffTemplateWood",
-                                                    "ccBGSSSE066_StaffTemplateWood02" };
+        public List<string> BaseStaves = new() { "ccBGSSSE066_StaffTemplateDreugh",
+                                                 "ccBGSSSE066_StaffTemplateEbony",
+                                                 "ccBGSSSE066_StaffTemplateDaedric",
+                                                 "ccBGSSSE066_StaffTemplateGlass",
+                                                 "ccBGSSSE066_StaffTemplateSilver",
+                                                 "ccBGSSSE066_StaffTemplateSteel",
+                                                 "ccBGSSSE066_StaffTemplateWood",
+                                                 "ccBGSSSE066_StaffTemplateWood02" };
         [SettingName("The regex used to get the staff prefixes, don't mess with this unless you know what you're doing")]
         public string StaffRegex = @"Unenchanted (\w+) Staff";
     }
@@ -156,7 +156,7 @@ namespace StaffDuplicator
                             {
                                 entry.Data ??= new();
                                 if (entry.Data.Reference.FormKey == record.FormKey)
-                                    entry.Data.Reference.FormKey = lList.FormKey; 
+                                    entry.Data.Reference.FormKey = lList.FormKey;
                             }
                         }
                     }
