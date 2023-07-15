@@ -86,9 +86,11 @@ namespace StaffDuplicator
                         && !x.Template.IsNull).Select(x => x.FormKey));
             }
 
+            stavesToPatch = stavesToPatch.Distinct().ToList();
+
             var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides().ToList();
             var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => stavesToPatch.Contains(x.Record.FormKey)
-                && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey));
+                && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey)).ToList();
             Console.WriteLine("Starting");
 
             foreach (var staff in staves)
