@@ -13,9 +13,14 @@ namespace StaffDuplicator
 {
     public class Settings
     {
-        [SettingName("A list of mod names to patch")]
+        [SettingName("Mods to patch")]
+        [Tooltip("List of mod filename (including extension) to source staves from")]
         public List<string> ModsToPatch = new();
-        [SettingName("A list of editor ids for base, unenchanted staves")]
+        [SettingName("Patch Leveled Lists")]
+        [Tooltip("If set, the patcher will update the vanilla leveled lists to point at the new staves")]
+        public bool PatchLists = true;
+        [SettingName("Base Staves")]
+        [Tooltip("A list of editor ids for base, unenchanted staves to generate duplicates for")]
         public List<string> BaseStaves = new() { "ccBGSSSE066_StaffTemplateDreugh",
                                                  "ccBGSSSE066_StaffTemplateEbony",
                                                  "ccBGSSSE066_StaffTemplateDaedric",
@@ -24,7 +29,8 @@ namespace StaffDuplicator
                                                  "ccBGSSSE066_StaffTemplateSteel",
                                                  "ccBGSSSE066_StaffTemplateWood",
                                                  "ccBGSSSE066_StaffTemplateWood02" };
-        [SettingName("The regex used to get the staff prefixes, don't mess with this unless you know what you're doing")]
+        [SettingName("Name Regex")]
+        [Tooltip("The regex used to get the staff prefixes, don't mess with this unless you know what you're doing")]
         public string StaffRegex = @"Unenchanted (\w+) Staff";
     }
 
@@ -145,24 +151,25 @@ namespace StaffDuplicator
                 }
 
                 // loop over every leveled list that includes the original staff and update it to point at the sublist
-                Parallel.ForEach(state.LoadOrder.PriorityOrder.LeveledItem().WinningOverrides(), x =>
-                {
-                    if (x.Entries?.Any(y => y.Data?.Reference.FormKey == record.FormKey) ?? false)
+                if (settings.Value.PatchLists)
+                    Parallel.ForEach(state.LoadOrder.PriorityOrder.LeveledItem().WinningOverrides(), x =>
                     {
-                        lock (state)
+                        if (x.Entries?.Any(y => y.Data?.Reference.FormKey == record.FormKey) ?? false)
                         {
-                            var newList = state.PatchMod.LeveledItems.GetOrAddAsOverride(x);
-
-                            newList.Entries ??= new();
-                            foreach (var entry in newList.Entries)
+                            lock (state)
                             {
-                                entry.Data ??= new();
-                                if (entry.Data.Reference.FormKey == record.FormKey)
-                                    entry.Data.Reference.FormKey = lList.FormKey;
+                                var newList = state.PatchMod.LeveledItems.GetOrAddAsOverride(x);
+
+                                newList.Entries ??= new();
+                                foreach (var entry in newList.Entries)
+                                {
+                                    entry.Data ??= new();
+                                    if (entry.Data.Reference.FormKey == record.FormKey)
+                                        entry.Data.Reference.FormKey = lList.FormKey;
+                                }
                             }
                         }
-                    }
-                });
+                    });
 
                 // do this here so the above won't nab it and make the list recursive
                 lList.Entries.Add(new LeveledItemEntry
