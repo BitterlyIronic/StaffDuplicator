@@ -169,14 +169,14 @@ namespace StaffDuplicator
                                 {
                                     entry.Data ??= new();
                                     if (entry.Data.Reference.FormKey == record.FormKey)
-                                        entry.Data.Reference.FormKey = lList.FormKey;
+                                        entry.Data.Reference.FormKey = lList!.FormKey;
                                 }
                             }
                         }
                     });
 
                 // do this here so the above won't nab it and make the list recursive
-                lList.Entries.Add(new LeveledItemEntry
+                lList?.Entries?.Add(new LeveledItemEntry
                 {
                     Data = new LeveledItemEntryData
                     {
