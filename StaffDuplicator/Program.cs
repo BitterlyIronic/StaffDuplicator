@@ -105,10 +105,14 @@ namespace StaffDuplicator
                 Console.WriteLine($"Processing: {record.Name} from {staff.ModKey.Name}");
 
                 var recipes = cObjects.Where(x => x.CreatedObject.FormKey == record.FormKey).ToList();
-                var lList = state.PatchMod.LeveledItems.AddNew();
+                LeveledItem? lList = null;
+                if (settings.Value.PatchLists)
+                {
+                    lList = state.PatchMod.LeveledItems.AddNew();
 
-                lList.EditorID = $"{record.EditorID}Sublist";
-                lList.Entries ??= new();
+                    lList.EditorID = $"{record.EditorID}Sublist";
+                    lList.Entries ??= new();
+                }
 
                 foreach (var baseStaff in baseStaves)
                 {
@@ -139,7 +143,7 @@ namespace StaffDuplicator
                     }
 
                     // build up a sublist containing the variant staves
-                    lList.Entries.Add(new LeveledItemEntry
+                    lList?.Entries?.Add(new LeveledItemEntry
                     {
                         Data = new LeveledItemEntryData
                         {
