@@ -19,6 +19,9 @@ namespace StaffDuplicator
         [SettingName("Patch Leveled Lists")]
         [Tooltip("If set, the patcher will update the vanilla leveled lists to point at the new staves")]
         public bool PatchLists = true;
+        [SettingName("Hide Recipes")]
+        [Tooltip("If set, the patcher will add a condition to generated recipes to hide them if the appropriate base staff isn't in the player's inventory")]
+        public bool HideRecipes = false;
         [SettingName("Base Staves")]
         [Tooltip("A list of editor ids for base, unenchanted staves to generate duplicates for")]
         public List<string> BaseStaves = new() { "ccBGSSSE066_StaffTemplateDreugh",
@@ -140,6 +143,26 @@ namespace StaffDuplicator
                         newRecipe.EditorID += baseStaff.Suffix;
                         newRecipe.CreatedObject.FormKey = newStaff.FormKey;
                         newRecipe.Items?.Where(x => x.Item.Item.FormKey == record.Template.FormKey).ForEach(x => x.Item.Item.FormKey = baseStaff.FormKey);
+
+                        if (settings.Value.HideRecipes)
+                        {
+                            var condData = new GetItemCountConditionData
+                            {
+                                RunOnType = Condition.RunOnType.Reference,
+                                Reference = FormKey.Factory("000014:Skyrim.esm").ToLink<ISkyrimMajorRecordGetter>()
+                            };
+
+                            var cond = new ConditionFloat
+                            {
+                                CompareOperator = CompareOperator.GreaterThanOrEqualTo,
+                                ComparisonValue = 1f,
+                                Data = condData
+                            };
+
+                            condData.ItemOrList.Link.SetTo(baseStaff.FormKey);
+
+                            newRecipe.Conditions.Add(cond);
+                        }
                     }
 
                     // build up a sublist containing the variant staves
