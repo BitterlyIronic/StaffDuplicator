@@ -91,14 +91,14 @@ namespace StaffDuplicator
             {
                 // staves that have editor ids and templates
                 stavesToPatch.AddRange(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
-                        && x.HasKeyword(staffKeyword)
-                        && !x.Template.IsNull).Select(x => x.FormKey));
+                        && x.HasKeyword(staffKeyword)).Select(x => x.FormKey));
             }
 
             stavesToPatch = stavesToPatch.Distinct().ToList();
 
             var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides().ToList();
-            var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => stavesToPatch.Contains(x.Record.FormKey)
+            var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => !x.Record.Template.IsNull
+                && stavesToPatch.Contains(x.Record.FormKey)
                 && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey)).ToList();
             Console.WriteLine("Starting");
 
