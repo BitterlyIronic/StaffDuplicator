@@ -7,6 +7,7 @@ using Mutagen.Bethesda.Plugins;
 using System.Text.RegularExpressions;
 using Noggog;
 using Mutagen.Bethesda.Plugins.Cache;
+using Mutagen.Bethesda.FormKeys.SkyrimSE;
 using DynamicData;
 
 namespace StaffDuplicator
@@ -142,7 +143,7 @@ namespace StaffDuplicator
                                 var condData = new GetItemCountConditionData
                                 {
                                     RunOnType = Condition.RunOnType.Reference,
-                                    Reference = FormKey.Factory("000014:Skyrim.esm").ToLink<ISkyrimMajorRecordGetter>()
+                                    Reference = Skyrim.PlayerRef
                                 };
 
                                 var cond = new ConditionFloat
