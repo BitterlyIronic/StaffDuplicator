@@ -69,7 +69,7 @@ namespace StaffDuplicator
             var hasMysticism = state.LoadOrder.ContainsKey(Mysticism);
 
             var staffKeyword = state.LinkCache.Resolve<IKeywordGetter>("WeapTypeStaff").ToNullableLink();
-            var modsToPatch = (settings?.Value.ModsToPatch ?? throw new ArgumentException("Settings failed to load")).Select(x => ModKey.FromNameAndExtension(x)).ToList();
+            var modsToPatch = (settings?.Value.ModsToPatch ?? throw new ArgumentException("Settings failed to load")).Select(x => state.LoadOrder.GetIfEnabled(ModKey.FromNameAndExtension(x))).ToList();
             var baseStaves = BuildBaseStaffList(state, settings?.Value.BaseStaves ?? throw new ArgumentException("Settings failed to load"));
             Dictionary<Skill, IFormLinkNullable<IKeywordGetter>> keywordDict = new();
 
@@ -83,131 +83,125 @@ namespace StaffDuplicator
                 keywordDict.Add(Skill.Restoration, state.PatchMod.Keywords.GetOrAddAsOverride(state.LinkCache.Resolve<IKeywordGetter>("MAG_StaffTypeRestoration")).ToNullableLink());
             }
 
-            state.LoadOrder.AssertListsMods(modsToPatch);
+            if (modsToPatch.Any(x => !x.ExistsOnDisk)) throw new ArgumentException("Not all mods to patch found in load order");
 
-            List<FormKey> stavesToPatch = new();
-
-            foreach (var mod in modsToPatch)
-            {
-                // staves that have editor ids and templates
-                stavesToPatch.AddRange(state.LoadOrder.TryGetValue(mod)!.Mod!.Weapons.Where(x => x.EditorID != null
-                        && x.HasKeyword(staffKeyword)).Select(x => x.FormKey));
-            }
-
-            stavesToPatch = stavesToPatch.Distinct().ToList();
-
+            // staves that have editor ids and templates
+            var stavesToPatch = modsToPatch.WinningOverrides<IWeaponGetter>().Where(x => x.EditorID != null && x.HasKeyword(staffKeyword)).ToList();
             var cObjects = state.LoadOrder.PriorityOrder.ConstructibleObject().WinningOverrides().ToList();
-            var staves = state.LoadOrder.PriorityOrder.Weapon().WinningContextOverrides().Where(x => !x.Record.Template.IsNull
-                && stavesToPatch.Contains(x.Record.FormKey)
-                && cObjects.Any(y => y.CreatedObject.FormKey == x.Record.FormKey)).ToList();
             Console.WriteLine("Starting");
 
-            foreach (var staff in staves)
+            foreach (var modStaff in stavesToPatch)
             {
-                var record = staff.Record;
-                Console.WriteLine($"Processing: {record.Name} from {staff.ModKey.Name}");
+                if (modStaff.ToLink().TryResolveContext<ISkyrimMod, ISkyrimModGetter, IWeapon, IWeaponGetter>(state.LinkCache, out var staff)) {
+                    var record = staff.Record;
 
-                var recipes = cObjects.Where(x => x.CreatedObject.FormKey == record.FormKey).ToList();
-                LeveledItem? lList = null;
-                if (settings.Value.PatchLists)
-                {
-                    lList = state.PatchMod.LeveledItems.AddNew();
+                    if (record.Template.IsNull || !cObjects.Any(x => x.CreatedObject.FormKey == record.FormKey))
+                        continue;
 
-                    lList.EditorID = $"{record.EditorID}Sublist";
-                    lList.Entries ??= new();
-                }
+                    Console.WriteLine($"Processing: {record.Name} from {staff.ModKey.Name}");
 
-                foreach (var baseStaff in baseStaves)
-                {
-                    var newStaff = state.PatchMod.Weapons.DuplicateInAsNewRecord(record);
-                    newStaff.BasicStats ??= new();
-
-                    newStaff.EditorID += baseStaff.Suffix;
-                    newStaff.BasicStats.Weight = baseStaff.Weight;
-                    newStaff.Model = baseStaff.Model.DeepCopy();
-                    newStaff.FirstPersonModel = baseStaff.FirstModel?.AsSetter().AsNullable() ?? throw new Exception("The model is gone???");
-                    newStaff.ObjectBounds = baseStaff.Bounds.DeepCopy();
-                    newStaff.Name = $"{baseStaff.Prefix} {record.Name}";
-                    newStaff.Template.SetToNull();
-
-                    if (keywordDict.TryGetValue(record.Data?.Skill ?? throw new Exception("No data somehow?"), out var keyword))
+                    var recipes = cObjects.Where(x => x.CreatedObject.FormKey == record.FormKey).ToList();
+                    LeveledItem? lList = null;
+                    if (settings.Value.PatchLists)
                     {
-                        newStaff.Keywords ??= new();
-                        newStaff.Keywords.Add(keyword);
+                        lList = state.PatchMod.LeveledItems.AddNew();
+
+                        lList.EditorID = $"{record.EditorID}Sublist";
+                        lList.Entries ??= new();
                     }
 
-                    // copy all recipes pointing at the original staff and make duplicates
-                    foreach (var recipe in recipes)
+                    foreach (var baseStaff in baseStaves)
                     {
-                        var newRecipe = state.PatchMod.ConstructibleObjects.DuplicateInAsNewRecord(recipe);
-                        newRecipe.EditorID += baseStaff.Suffix;
-                        newRecipe.CreatedObject.FormKey = newStaff.FormKey;
-                        newRecipe.Items?.Where(x => x.Item.Item.FormKey == record.Template.FormKey).ForEach(x => x.Item.Item.FormKey = baseStaff.FormKey);
+                        var newStaff = state.PatchMod.Weapons.DuplicateInAsNewRecord(record);
+                        newStaff.BasicStats ??= new();
 
-                        if (settings.Value.HideRecipes)
+                        newStaff.EditorID += baseStaff.Suffix;
+                        newStaff.BasicStats.Weight = baseStaff.Weight;
+                        newStaff.Model = baseStaff.Model.DeepCopy();
+                        newStaff.FirstPersonModel = baseStaff.FirstModel?.AsSetter().AsNullable() ?? throw new Exception("The model is gone???");
+                        newStaff.ObjectBounds = baseStaff.Bounds.DeepCopy();
+                        newStaff.Name = $"{baseStaff.Prefix} {record.Name}";
+                        newStaff.Template.SetToNull();
+
+                        if (keywordDict.TryGetValue(record.Data?.Skill ?? throw new Exception("No data somehow?"), out var keyword))
                         {
-                            var condData = new GetItemCountConditionData
-                            {
-                                RunOnType = Condition.RunOnType.Reference,
-                                Reference = FormKey.Factory("000014:Skyrim.esm").ToLink<ISkyrimMajorRecordGetter>()
-                            };
-
-                            var cond = new ConditionFloat
-                            {
-                                CompareOperator = CompareOperator.GreaterThanOrEqualTo,
-                                ComparisonValue = 1f,
-                                Data = condData
-                            };
-
-                            condData.ItemOrList.Link.SetTo(baseStaff.FormKey);
-
-                            newRecipe.Conditions.Add(cond);
+                            newStaff.Keywords ??= new();
+                            newStaff.Keywords.Add(keyword);
                         }
+
+                        // copy all recipes pointing at the original staff and make duplicates
+                        foreach (var recipe in recipes)
+                        {
+                            var newRecipe = state.PatchMod.ConstructibleObjects.DuplicateInAsNewRecord(recipe);
+                            newRecipe.EditorID += baseStaff.Suffix;
+                            newRecipe.CreatedObject.FormKey = newStaff.FormKey;
+                            newRecipe.Items?.Where(x => x.Item.Item.FormKey == record.Template.FormKey).ForEach(x => x.Item.Item.FormKey = baseStaff.FormKey);
+
+                            if (settings.Value.HideRecipes)
+                            {
+                                var condData = new GetItemCountConditionData
+                                {
+                                    RunOnType = Condition.RunOnType.Reference,
+                                    Reference = FormKey.Factory("000014:Skyrim.esm").ToLink<ISkyrimMajorRecordGetter>()
+                                };
+
+                                var cond = new ConditionFloat
+                                {
+                                    CompareOperator = CompareOperator.GreaterThanOrEqualTo,
+                                    ComparisonValue = 1f,
+                                    Data = condData
+                                };
+
+                                condData.ItemOrList.Link.SetTo(baseStaff.FormKey);
+
+                                newRecipe.Conditions.Add(cond);
+                            }
+                        }
+
+                        // build up a sublist containing the variant staves
+                        lList?.Entries?.Add(new LeveledItemEntry
+                        {
+                            Data = new LeveledItemEntryData
+                            {
+                                Count = 1,
+                                Level = 1,
+                                Reference = newStaff.ToLink()
+                            }
+                        });
                     }
 
-                    // build up a sublist containing the variant staves
+                    // loop over every leveled list that includes the original staff and update it to point at the sublist
+                    if (settings.Value.PatchLists)
+                        Parallel.ForEach(state.LoadOrder.PriorityOrder.LeveledItem().WinningOverrides(), x =>
+                        {
+                            if (x.Entries?.Any(y => y.Data?.Reference.FormKey == record.FormKey) ?? false)
+                            {
+                                lock (state)
+                                {
+                                    var newList = state.PatchMod.LeveledItems.GetOrAddAsOverride(x);
+
+                                    newList.Entries ??= new();
+                                    foreach (var entry in newList.Entries)
+                                    {
+                                        entry.Data ??= new();
+                                        if (entry.Data.Reference.FormKey == record.FormKey)
+                                            entry.Data.Reference.FormKey = lList!.FormKey;
+                                    }
+                                }
+                            }
+                        });
+
+                    // do this here so the above won't nab it and make the list recursive
                     lList?.Entries?.Add(new LeveledItemEntry
                     {
                         Data = new LeveledItemEntryData
                         {
                             Count = 1,
                             Level = 1,
-                            Reference = newStaff.ToLink()
+                            Reference = record.ToNullableLink()
                         }
                     });
                 }
-
-                // loop over every leveled list that includes the original staff and update it to point at the sublist
-                if (settings.Value.PatchLists)
-                    Parallel.ForEach(state.LoadOrder.PriorityOrder.LeveledItem().WinningOverrides(), x =>
-                    {
-                        if (x.Entries?.Any(y => y.Data?.Reference.FormKey == record.FormKey) ?? false)
-                        {
-                            lock (state)
-                            {
-                                var newList = state.PatchMod.LeveledItems.GetOrAddAsOverride(x);
-
-                                newList.Entries ??= new();
-                                foreach (var entry in newList.Entries)
-                                {
-                                    entry.Data ??= new();
-                                    if (entry.Data.Reference.FormKey == record.FormKey)
-                                        entry.Data.Reference.FormKey = lList!.FormKey;
-                                }
-                            }
-                        }
-                    });
-
-                // do this here so the above won't nab it and make the list recursive
-                lList?.Entries?.Add(new LeveledItemEntry
-                {
-                    Data = new LeveledItemEntryData
-                    {
-                        Count = 1,
-                        Level = 1,
-                        Reference = record.ToNullableLink()
-                    }
-                });
             }
         }
 
